@@ -9,13 +9,6 @@ import psycopg
 from psycopg.rows import dict_row
 from dotenv import load_dotenv
 import os
-import os
-print("DB FILE PATH:", __file__)
-print("CURRENT WORKDIR:", os.getcwd())
-
-print("DATABASE_URL ENV:", os.getenv("DATABASE_URL"))
-print("PGPORT ENV:", os.getenv("PGPORT"))
-print("PGDATABASE ENV:", os.getenv("PGDATABASE"))
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, "..", ".env")
@@ -67,4 +60,3 @@ def read_sql_df(cfg: DBConfig, sql: str, params: Optional[dict[str, Any]] = None
 
 
 
-print("DSN:", _build_dsn())

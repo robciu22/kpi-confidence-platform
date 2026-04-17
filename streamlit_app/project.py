@@ -1,5 +1,8 @@
 from __future__ import annotations
+import os
 import streamlit as st
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
 
 st.set_page_config(
     page_title="KPI Confidence – Berliner Verkehrsdetektion",
@@ -38,7 +41,7 @@ with col1:
     st.caption(" Anomalien und Sensorstabilität")
 
 with col2:
-    st.image("images/hamburg.jpg", caption="Berlin Traffic")
+    st.image(os.path.join(_HERE, "images", "hamburg.jpg"), caption="Berlin Traffic")
 
 
 st.divider()
