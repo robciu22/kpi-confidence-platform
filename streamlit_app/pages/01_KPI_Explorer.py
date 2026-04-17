@@ -251,7 +251,8 @@ with st.sidebar:
 # Data Load
 # ===============================
 if demo:
-    st.warning(f"Demo-Modus aktiv (keine DB-Verbindung): {err}")
+    short_err = err.splitlines()[0] if err else "keine DB"
+    st.warning(f"Demo-Modus aktiv (keine DB-Verbindung): {short_err}")
     _all = make_demo_kpi_hourly(days=14)
     year_selected = int(_all["year_utc"].max())
     month_selected = int(_all[_all["year_utc"] == year_selected]["month_utc"].max())

@@ -222,7 +222,8 @@ demo = not ok
 
 if demo:
     df = make_demo_kpi_hourly(days=30)
-    st.warning(f"Demo mode active (DB connection failed): {err}")
+    short_err = err.splitlines()[0] if err else "keine DB"
+    st.warning(f"Demo-Modus aktiv (keine DB-Verbindung): {short_err}")
     year_selected = 2025
     month_selected = 1
 else:
