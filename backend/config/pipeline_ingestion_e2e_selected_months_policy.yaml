@@ -1,0 +1,54 @@
+env_file: ./.env
+file_storage:
+  root_env: FILE_STORAGE_ROOT
+  root_fallback: ./data/source
+  auto_create: true
+  dataset_root: verkehrsdetektion/monthly
+selection:
+  mode: months
+  months:
+  - '2024_01'
+  - '2024_03'
+  - '2024_05'
+  range:
+    start_month: '2023_01'
+    end_month: '2024_12'
+  years:
+  - 2023
+  - 2024
+  discover:
+    month_glob: '*'
+sources:
+  new:
+    enabled: true
+    tgz_relpath: '{dataset_root}/{month_key}/new_detectors/detektoren_{month_key}.tgz'
+  old:
+    enabled: true
+    detectors_glob_relpath: '{dataset_root}/{month_key}/old_detectors/*.csv.gz'
+    cross_sections_glob_relpath: '{dataset_root}/{month_key}/old_cross_sections/*.csv.gz'
+  layout_mode: auto
+  auto_layout:
+    old_only_years:
+    - 2017
+    - 2018
+    - 2019
+    - 2020
+    - 2021
+    - 2022
+    both_years: []
+    new_only_years:
+    - 2023
+    - 2024
+    - 2025
+    unknown_year_policy: new
+  overrides: {}
+options:
+  timezone: Europe/Berlin
+  limits:
+    new_only_detectors: []
+    max_rows: null
+hashing:
+  algorithm: sha256
+  chunk_size_bytes: 8388608
+manifest:
+  enabled: true
