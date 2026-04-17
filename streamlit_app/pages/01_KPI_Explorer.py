@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -382,16 +383,29 @@ if base_df.empty:
 detector_lookup = pd.DataFrame()
 
 if entity_type == "detector":
-    try:
-        detector_lookup = load_detector_lookup()[
-            ["det_id15", "strasse", "richtung", "position", "spur", "lat_wgs84", "lon_wgs84"]
-        ].copy()
-    except Exception:
-        detector_lookup = pd.DataFrame()
+    if demo:
+        det_ids = sorted(base_df["entity_id"].astype(str).str.strip().unique().tolist())
+        _rng = np.random.default_rng(42)
+        detector_lookup = pd.DataFrame({
+            "det_id15": det_ids,
+            "strasse": [f"Musterstraße {i + 1}" for i in range(len(det_ids))],
+            "richtung": ["Nord" for _ in det_ids],
+            "position": ["Mitte" for _ in det_ids],
+            "spur": ["1" for _ in det_ids],
+            "lat_wgs84": _rng.uniform(52.45, 52.58, len(det_ids)).tolist(),
+            "lon_wgs84": _rng.uniform(13.30, 13.55, len(det_ids)).tolist(),
+        })
+    else:
+        try:
+            detector_lookup = load_detector_lookup()[
+                ["det_id15", "strasse", "richtung", "position", "spur", "lat_wgs84", "lon_wgs84"]
+            ].copy()
+        except Exception:
+            detector_lookup = pd.DataFrame()
 
-    if detector_lookup.empty:
-        st.warning("Detector lookup could not be loaded.")
-        st.stop()
+        if detector_lookup.empty:
+            st.warning("Detector lookup could not be loaded.")
+            st.stop()
 
     detector_lookup["det_id15"] = detector_lookup["det_id15"].astype(str).str.strip()
     detector_lookup = detector_lookup.drop_duplicates("det_id15")
