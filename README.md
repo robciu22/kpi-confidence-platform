@@ -3,6 +3,7 @@
 **"Can we trust this KPI?"** — Ein Data Engineering Projekt zur automatisierten Bewertung der Zuverlässigkeit von Verkehrs-KPIs auf Basis Berliner Detektordaten.
 
 Entwickelt als Abschlussprojekt am Data Science Institute (DSI) — 3-köpfiges Team.  
+**Live Demo:** [kpi-confidence.streamlit.app](https://kpi-confidence.streamlit.app)  
 Dornas Repository (Streamlit Demo live): [github.com/DornaPoursoheil/kpi-confidence-platform](https://github.com/DornaPoursoheil/kpi-confidence-platform)
 
 ---
