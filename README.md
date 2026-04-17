@@ -122,6 +122,6 @@ Abschlussprojekt am Data Science Institute (DSI) — entwickelt von einem 3-köp
 
 | Rolle | Schwerpunkt |
 |---|---|
-| Robert Legatzki | Backend-Pipeline, FastAPI, ML-Anomalieerkennung, PostgreSQL-Schema |
-| Dorna Poursoheil | Streamlit-Dashboard, Systemarchitektur, n8n-Orchestrierung |
-| Teammitglied 3 | Explorative Datenanalyse, Power BI Dashboard |
+| Robert Legatzki | Backend-Pipeline, FastAPI, ML-Anomalieerkennung, PostgreSQL-Schema, Systemarchitektur, Explorative Datenanalyse |
+| Dorna Poursoheil | Streamlit-Dashboard, n8n-Orchestrierung |
+| Christian Jessen | Power BI Dashboard |
