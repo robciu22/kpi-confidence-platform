@@ -10,6 +10,7 @@ import sys
 from src.db import can_connect, get_config, read_sql_df
 from src.queries import KPI_DAILY, KPI_HOURLY, YEAR_MONTHS, DETECTOR_LIST
 from src.ui import apply_entity_labels, label_entity_type
+from src.demo_data import make_demo_kpi_hourly
 
 
 # ===============================
@@ -226,9 +227,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if not ok:
-    st.error(f"Database connection failed: {err}")
-    st.stop()
+demo = not ok
 
 # ===============================
 # Sidebar
@@ -250,44 +249,55 @@ with st.sidebar:
 # ===============================
 # Data Load
 # ===============================
-year_month_df = load_yearmonths()
-
-if year_month_df.empty:
-    st.info("No data in database.")
-    st.stop()
-
-year_month_df["year_utc"] = pd.to_numeric(year_month_df["year_utc"], errors="coerce")
-year_month_df["month_utc"] = pd.to_numeric(year_month_df["month_utc"], errors="coerce")
-year_month_df = year_month_df.dropna(subset=["year_utc", "month_utc"]).copy()
-
-year_month_df["year_utc"] = year_month_df["year_utc"].astype(int)
-year_month_df["month_utc"] = year_month_df["month_utc"].astype(int)
-year_month_df["year_month"] = (
-    year_month_df["year_utc"].astype(str)
-    + "_"
-    + year_month_df["month_utc"].astype(str).str.zfill(2)
-)
-year_month_df = year_month_df.sort_values(["year_utc", "month_utc"], ascending=[False, False])
-available_yearmonths = year_month_df["year_month"].drop_duplicates().tolist()
-
-with st.sidebar:
-    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
-    yearmonth_selected = st.selectbox("Year_Month", available_yearmonths, index=0)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-year_selected = int(yearmonth_selected.split("_")[0])
-month_selected = int(yearmonth_selected.split("_")[1])
-
-params = {
-    "year": year_selected,
-    "month": month_selected,
-    "entity_type": entity_type,
-}
-
-if mode == "Hourly":
-    df = load_kpi_data(KPI_HOURLY, params)
+if demo:
+    st.warning(f"Demo-Modus aktiv (keine DB-Verbindung): {err}")
+    _all = make_demo_kpi_hourly(days=14)
+    year_selected = int(_all["year_utc"].max())
+    month_selected = int(_all[_all["year_utc"] == year_selected]["month_utc"].max())
+    df = _all[
+        (_all["year_utc"] == year_selected)
+        & (_all["month_utc"] == month_selected)
+        & (_all["entity_type"] == entity_type)
+    ].copy()
 else:
-    df = load_kpi_data(KPI_DAILY, params)
+    year_month_df = load_yearmonths()
+
+    if year_month_df.empty:
+        st.info("No data in database.")
+        st.stop()
+
+    year_month_df["year_utc"] = pd.to_numeric(year_month_df["year_utc"], errors="coerce")
+    year_month_df["month_utc"] = pd.to_numeric(year_month_df["month_utc"], errors="coerce")
+    year_month_df = year_month_df.dropna(subset=["year_utc", "month_utc"]).copy()
+
+    year_month_df["year_utc"] = year_month_df["year_utc"].astype(int)
+    year_month_df["month_utc"] = year_month_df["month_utc"].astype(int)
+    year_month_df["year_month"] = (
+        year_month_df["year_utc"].astype(str)
+        + "_"
+        + year_month_df["month_utc"].astype(str).str.zfill(2)
+    )
+    year_month_df = year_month_df.sort_values(["year_utc", "month_utc"], ascending=[False, False])
+    available_yearmonths = year_month_df["year_month"].drop_duplicates().tolist()
+
+    with st.sidebar:
+        st.markdown('<div class="filter-box">', unsafe_allow_html=True)
+        yearmonth_selected = st.selectbox("Year_Month", available_yearmonths, index=0)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    year_selected = int(yearmonth_selected.split("_")[0])
+    month_selected = int(yearmonth_selected.split("_")[1])
+
+    params = {
+        "year": year_selected,
+        "month": month_selected,
+        "entity_type": entity_type,
+    }
+
+    if mode == "Hourly":
+        df = load_kpi_data(KPI_HOURLY, params)
+    else:
+        df = load_kpi_data(KPI_DAILY, params)
 
 # ===============================
 # Post Processing

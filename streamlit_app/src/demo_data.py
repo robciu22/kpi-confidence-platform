@@ -6,7 +6,7 @@ import pandas as pd
 
 def make_demo_kpi_hourly(days: int = 14, n_detectors: int = 30, seed: int = 7) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    hours = pd.date_range(end=pd.Timestamp.utcnow().floor("H"), periods=days * 24, freq="H", tz="UTC")
+    hours = pd.date_range(end=pd.Timestamp.utcnow().floor("h"), periods=days * 24, freq="h", tz="UTC")
 
     kpis = [
         ("flow", "kfz", "hourly"),
