@@ -36,6 +36,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import mlflow
 
 try:
     from zoneinfo import ZoneInfo
@@ -538,6 +539,32 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args()
 
+    # ── MLflow Experiment Setup ──────────────────────────────────────────────
+    # Months with known data naming errors (intentionally included to demonstrate
+    # validation capability — these months show the confidence scoring catching
+    # structurally flawed input data).
+    _KNOWN_NAMING_ERROR_MONTHS = {"2022_06", "2025_02"}
+    _data_quality_tag = (
+        "known_naming_error" if args.month_key in _KNOWN_NAMING_ERROR_MONTHS else "ok"
+    )
+    mlflow.set_experiment("kpi-anomaly-detection")
+    mlflow_run = mlflow.start_run(run_name=f"zscore_{args.month_key}")
+    mlflow.log_params({
+        "month_key":              args.month_key,
+        "model_name":             args.model_name,
+        "z_threshold":            args.z_threshold,
+        "threshold_mode":         args.threshold_mode,
+        "lookback_days":          args.lookback_days,
+        "min_samples_per_group":  args.min_samples_per_group,
+        "replace_month_slice":    args.replace_month_slice,
+    })
+    mlflow.set_tags({
+        "data_quality":  _data_quality_tag,
+        "stage":         "A",
+        "script":        "ml_anomaly_score_hourly_stage_a_v1_1",
+    })
+    # ────────────────────────────────────────────────────────────────────────
+
     # Config-Pfad robust auflösen (funktioniert unabhängig vom aktuellen Arbeitsverzeichnis)
     project_root = find_project_root(Path(__file__).resolve())
     cfg_arg = Path(args.config)
@@ -664,7 +691,18 @@ def main() -> int:
 
         anom = int(scored["is_anomaly"].sum())
         thr = float(scored["threshold_used"].iloc[0])
+        anomaly_rate = round(anom / len(scored), 4) if len(scored) > 0 else 0.0
         log(f"Eingefügt/aktualisiert: {inserted} | Anomalien: {anom}/{len(scored)} | threshold_used={thr}")
+
+        # ── MLflow Metriken ──────────────────────────────────────────────────
+        mlflow.log_metrics({
+            "rows_inserted":   inserted,
+            "rows_scored":     len(scored),
+            "anomaly_count":   anom,
+            "anomaly_rate":    anomaly_rate,
+            "threshold_used":  thr,
+        })
+        # ────────────────────────────────────────────────────────────────────
         return 0
 
     except Exception:
@@ -676,6 +714,7 @@ def main() -> int:
             conn.close()
         except Exception:
             pass
+        mlflow.end_run()
 
 
 if __name__ == "__main__":

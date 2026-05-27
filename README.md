@@ -27,7 +27,7 @@ Dieses System berechnet automatisch einen **Confidence Score (0–1)** für jede
 | Daten-Ingestion | Python, FastAPI, SHA-256-Verifikation |
 | Orchestrierung | n8n (Workflow-Automatisierung) |
 | Datenbank | PostgreSQL 16 (8 Schemas) |
-| ML / Anomalieerkennung | Python, MAD (Median Absolute Deviation) |
+| ML / Anomalieerkennung | Python, MAD (Median Absolute Deviation), **MLflow** |
 | Diagnose-Dashboard | Streamlit |
 | Business Dashboard | Power BI |
 | Monitoring | Systemd Service, Slack-Alerts |
@@ -114,6 +114,47 @@ streamlit run project.py
 ```
 
 Das Dashboard läuft automatisch im **Demo-Modus** wenn keine DB-Verbindung vorhanden ist.
+
+---
+
+## MLflow Experiment Tracking
+
+Das ML-Anomalie-Scoring-Modul (`backend/scripts/ml/ml_anomaly_score_hourly_stage_a_v1_1.py`) ist mit **MLflow** integriert, um Runs systematisch zu vergleichen und zu reproduzieren.
+
+### Getrackter Experiment: `kpi-anomaly-detection`
+
+**Parameter (pro Run):** `month_key`, `model_name`, `z_threshold`, `threshold_mode`, `lookback_days`  
+**Metriken (pro Run):** `anomaly_count`, `anomaly_rate`, `rows_scored`, `rows_inserted`, `threshold_used`  
+**Tags:** `data_quality` (`ok` / `known_naming_error`), `stage`, `script`
+
+### Beispiel-Runs
+
+| Run | Monat | Zeilen | Anomalien | Rate | data_quality |
+|---|---|---|---|---|---|
+| zscore_2025_05 | Mai 2025 | 400.603 | 44.379 | 11,1 % | ok |
+| zscore_2024_04 | Apr 2024 | 346.876 | 51.020 | 14,7 % | ok |
+| zscore_2023_03 | Mrz 2023 | 309.237 | 33.689 | 10,9 % | ok |
+| zscore_2022_06 | Jun 2022 | 224.156 | **0** | **0,0 %** | known_naming_error |
+
+> Der Run `2022_06` mit 0 % Anomalie-Rate demonstriert den Kernnutzen der Plattform:
+> Die Pipeline erkannte korrekt, dass die Eingabedaten dieses Monats strukturell fehlerhafte Bezeichner enthielten — und vergab entsprechend niedrige Confidence Scores. **Validation in Aktion.**
+
+### MLflow UI lokal starten
+
+```bash
+pip install mlflow
+mlflow ui --port 5000
+# → http://127.0.0.1:5000  →  "Model training"  →  kpi-anomaly-detection
+```
+
+### Run ausführen
+
+```bash
+python backend/scripts/ml/ml_anomaly_score_hourly_stage_a_v1_1.py \
+  --config config/pipeline_ingestion_e2e_selected_months_policy.yaml \
+  --month-key 2025_05 \
+  --replace-month-slice
+```
 
 ---
 
