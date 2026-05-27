@@ -388,6 +388,72 @@ def compute_scores(df: pd.DataFrame, params: ModelParams) -> pd.DataFrame:
     return df
 
 
+def compute_scores_isolation_forest(
+    df: pd.DataFrame,
+    contamination: float = 0.1,
+) -> pd.DataFrame:
+    """Isolation Forest Anomalie-Scoring — Alternative zu Robust Z-Score.
+
+    Eingabe: DataFrame mit Spalten det_id15, ts_utc, row_count, missing_rate,
+             duplicate_rate, freshness_lag_h.
+    Ausgabe: Gleiche Spaltenstruktur wie compute_scores() — kompatibel mit write_results().
+
+    anomaly_score = negierter decision_function-Wert (höher = anomaler, konsistent mit Z-Score)
+    top_driver    = Feature mit größter normalisierter Abweichung vom Median
+    """
+    try:
+        from sklearn.ensemble import IsolationForest  # lazy import — kein Pflicht-Dep für Z-Score-Pfad
+    except ImportError:
+        raise SystemExit(
+            "scikit-learn nicht installiert. Bitte: pip install scikit-learn"
+        )
+
+    if df.empty:
+        return df
+
+    df = df.copy()
+    df["ts_utc"] = pd.to_datetime(df["ts_utc"], utc=True)
+
+    feature_cols = ["row_count", "missing_rate", "duplicate_rate", "freshness_lag_h"]
+    for c in feature_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    X = df[feature_cols].fillna(0).to_numpy()
+
+    clf = IsolationForest(contamination=contamination, random_state=42, n_jobs=-1)
+    clf.fit(X)
+
+    # Negieren: höherer Wert = anomaler (konsistent mit Z-Score-Konvention)
+    df["anomaly_score"] = (-clf.decision_function(X)).astype(float)
+    df["is_anomaly"] = (clf.predict(X) == -1)
+    df["threshold_used"] = float(contamination)
+
+    # top_driver: Feature mit größter z-normalisierter Abweichung vom Median
+    feat_stats: dict[str, tuple[float, float]] = {}
+    for c in feature_cols:
+        med = float(df[c].median())
+        std = float(df[c].std())
+        feat_stats[c] = (med, std if std > 1e-10 else 1.0)
+
+    def _top_driver_if(row) -> tuple:
+        best_feature, best_val = "", -1.0
+        for c in feature_cols:
+            val = row[c]
+            if pd.isna(val):
+                continue
+            med, std = feat_stats[c]
+            score = abs(float(val) - med) / std
+            if score > best_val:
+                best_val, best_feature = score, c
+        return best_feature, best_val
+
+    td = df.apply(_top_driver_if, axis=1, result_type="expand")
+    df["top_driver"] = td[0]
+    df["driver_value"] = td[1].astype(float)
+
+    return df
+
+
 def delete_month_slice(cur, start_ts, end_ts, run_id: str, model_name: str) -> int:
     """Löscht bestehende ML-Scores für den Monat (Idempotenz bei --replace-month-slice).
 
@@ -537,6 +603,12 @@ def main() -> int:
         help="Monat überspringen, wenn Zeilen im Monatsslice unter diesem Schwellenwert liegen.",
     )
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument(
+        "--contamination",
+        type=float,
+        default=0.1,
+        help="Isolation Forest: erwarteter Anomalie-Anteil (0.0–0.5). Nur bei --model-name isolation_forest.",
+    )
     args = ap.parse_args()
 
     # ── MLflow Experiment Setup ──────────────────────────────────────────────
@@ -548,7 +620,8 @@ def main() -> int:
         "known_naming_error" if args.month_key in _KNOWN_NAMING_ERROR_MONTHS else "ok"
     )
     mlflow.set_experiment("kpi-anomaly-detection")
-    mlflow_run = mlflow.start_run(run_name=f"zscore_{args.month_key}")
+    _model_prefix = "iforest" if "isolation_forest" in args.model_name else "zscore"
+    mlflow_run = mlflow.start_run(run_name=f"{_model_prefix}_{args.month_key}")
     mlflow.log_params({
         "month_key":              args.month_key,
         "model_name":             args.model_name,
@@ -563,6 +636,8 @@ def main() -> int:
         "stage":         "A",
         "script":        "ml_anomaly_score_hourly_stage_a_v1_1",
     })
+    if "isolation_forest" in args.model_name:
+        mlflow.log_param("contamination", args.contamination)
     # ────────────────────────────────────────────────────────────────────────
 
     # Config-Pfad robust auflösen (funktioniert unabhängig vom aktuellen Arbeitsverzeichnis)
@@ -673,7 +748,12 @@ def main() -> int:
             eps=float(args.eps),
         )
 
-        scored = compute_scores(df, mp)
+        # ── Model Dispatch ───────────────────────────────────────────────────
+        if "isolation_forest" in args.model_name:
+            scored = compute_scores_isolation_forest(df, contamination=args.contamination)
+        else:
+            scored = compute_scores(df, mp)
+        # ────────────────────────────────────────────────────────────────────
         scored = scored[(scored["ts_utc"] >= pd.Timestamp(start_ts)) & (scored["ts_utc"] < pd.Timestamp(end_ts))]
 
         if scored.empty:
