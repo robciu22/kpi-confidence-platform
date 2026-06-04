@@ -149,6 +149,19 @@ Zwei Modelle werden verglichen — beide auf denselben 4 Monaten Berliner Detekt
 
 - **2024_04 (14,7 % vs. 0 %):** Die größte Diskrepanz zeigt den methodischen Unterschied: Der Z-Score erkennt *lokale* Ausreißer innerhalb jeder Detektor-Stunden-Gruppe. Isolation Forest bewertet die *globale Verteilung* — wenn alle Detektoren eines Monats gleichförmig degradierte Werte liefern, erscheint das dem IF als "normal". Dieser Befund motiviert den Multi-Modell-Ansatz.
 
+### Azure Machine Learning Integration
+
+Die Experimente laufen auch auf **Azure ML** (Workspace `robert-ml-workspace`, Germany West Central).
+Alle 8 Runs sind in Azure ML Studio sichtbar — dieselben Metriken, Tags und Parameter wie lokal.
+
+```bash
+# Alle 8 Runs gegen Azure ML ausführen (Browser-Auth einmalig)
+pip install azure-ai-ml azureml-mlflow azure-identity
+python backend/scripts/ml/run_azure_ml_all.py
+```
+
+→ Azure ML Studio: https://ml.azure.com → `robert-ml-workspace` → Aufträge → `kpi-anomaly-detection`
+
 ### MLflow UI lokal starten
 
 ```bash
