@@ -162,6 +162,35 @@ python backend/scripts/ml/run_azure_ml_all.py
 
 → Azure ML Studio: https://ml.azure.com → `robert-ml-workspace` → Aufträge → `kpi-anomaly-detection`
 
+### Databricks + PySpark (Community Edition)
+
+Die Anomalieerkennung wurde zusätzlich als **PySpark-Pipeline auf Databricks** implementiert,
+um die Skalierbarkeit auf verteilte Datenverarbeitungsumgebungen zu demonstrieren.
+
+**Notebook:** `databricks/kpi_anomalie_pyspark.ipynb`
+
+Kernunterschiede zur lokalen Python-Implementierung:
+
+| | Lokal (Python) | Databricks (PySpark) |
+|---|---|---|
+| Engine | pandas / numpy | Apache Spark |
+| Statistik | `np.median` (exakt) | `percentile_approx` (approximativ) |
+| Ausführung | Sequentiell | Verteilt (34 Tasks) |
+| Ergebnis 2025_05 | 44.379 (11,1 %) | 54.112 (13,5 %) |
+
+**Wichtige Implementierungsdetail (MAD=0-Fix):** Wenn der Median Absolute Deviation
+einer Gruppe 0 beträgt (konsistente Baseline) und ein Messwert abweicht, wird
+Z-Score = 999 gesetzt statt 0 — analog zur lokalen Implementierung.
+
+```python
+# MAD=0-Logik in PySpark
+F.when(mad_sc > EPS, F.abs(F.col(c) - med) / mad_sc)   # normaler Z-Score
+.when(F.abs(F.col(c) - med) <= EPS, F.lit(0.0))          # Wert = Median: normal
+.otherwise(F.lit(999.0))                                   # Wert ≠ Median: Anomalie
+```
+
+MLflow-Tracking läuft nativ in Databricks (Experiment: `kpi-anomaly-detection`).
+
 ### MLflow UI lokal starten
 
 ```bash
